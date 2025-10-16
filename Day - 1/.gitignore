@@ -1,0 +1,53 @@
+# Byte-compiled / optimized / compiled files
+__pycache__/
+*.pyc
+*.pyd
+*.pyo
+*.egg-info/
+.eggs/
+
+# Virtual environment
+venv/
+.venv/
+env/
+.env/
+# You might also want to ignore specific virtual environment tools' directories
+# For example, if using pipenv:
+# .pipenv/
+
+# Distribution / build files
+dist/
+build/
+*.whl
+*.egg
+
+# Editor / IDE files
+.vscode/ # VS Code specific settings
+.idea/ # PyCharm specific settings
+*.swp # Vim swap files
+*~ # Emacs backup files
+
+# Operating System files
+.DS_Store # macOS
+Thumbs.db # Windows
+desktop.ini # Windows
+
+# Jupyter Notebook files
+.ipynb_checkpoints/
+
+# Database files
+*.sqlite3
+*.db
+
+# Environment variables
+.env
+
+# Test results
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Miscellaneous
+logs/
+*.log
+tmp/
