@@ -1,2 +1,0 @@
-der
-from langchain_tex
