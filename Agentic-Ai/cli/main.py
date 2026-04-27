@@ -161,50 +161,81 @@ while True:
                 if DEBUG:
                     print(f"DEBUG: {assistant_content}")
                 
-                parsed_response = json.loads(assistant_content)
+                parsed_payload = json.loads(assistant_content)
 
-                if parsed_response.get("step") == "plan":
-                    print(f"🧠: {parsed_response.get('content')}")
-                    continue
+                # Gemini may sometimes return a list of step objects instead of a single object.
+                if isinstance(parsed_payload, dict):
+                    parsed_steps = [parsed_payload]
+                elif isinstance(parsed_payload, list):
+                    parsed_steps = [item for item in parsed_payload if isinstance(item, dict)]
+                else:
+                    print("❌ Invalid JSON response shape: expected object or list of objects")
+                    break
 
-                if parsed_response.get("step") == "action":
-                    tool_name = parsed_response.get("function")
-                    tool_input = parsed_response.get("input")
+                should_request_next_step = False
+                has_final_output = False
 
-                    print(f"🛠️: Calling {tool_name}('{tool_input[:50]}...' if len > 50)")
+                for parsed_response in parsed_steps:
+                    step_type = parsed_response.get("step")
 
-                    if tool_name in available_tools:
-                        # Special handling for write_file
-                        if tool_name == "write_file":
-                            # Parse the input: filepath|||content
-                            if "|||" in tool_input:
-                                parts = tool_input.split("|||", 1)
-                                filepath = parts[0].strip()
-                                content = parts[1] if len(parts) > 1 else ""
-                                output = available_tools[tool_name](filepath, content)
-                            else:
-                                output = "Error: write_file requires format 'filepath|||content'"
-                        else:
-                            output = available_tools[tool_name](tool_input)
-                        
-                        print(f"✅: {output}")
-                        messages.append({
-                            "role": "user", 
-                            "content": json.dumps({"step": "observe", "output": str(output)})
-                        })
+                    if step_type == "plan":
+                        print(f"🧠: {parsed_response.get('content')}")
                         continue
-                    else:
+
+                    if step_type == "action":
+                        tool_name = parsed_response.get("function")
+                        tool_input = parsed_response.get("input")
+                        tool_input_str = "" if tool_input is None else str(tool_input)
+                        preview = tool_input_str[:50] + ("..." if len(tool_input_str) > 50 else "")
+
+                        print(f"🛠️: Calling {tool_name}('{preview}')")
+
+                        if tool_name in available_tools:
+                            # Special handling for write_file
+                            if tool_name == "write_file":
+                                # Parse the input: filepath|||content
+                                if "|||" in tool_input_str:
+                                    parts = tool_input_str.split("|||", 1)
+                                    filepath = parts[0].strip()
+                                    content = parts[1] if len(parts) > 1 else ""
+                                    output = available_tools[tool_name](filepath, content)
+                                else:
+                                    output = "Error: write_file requires format 'filepath|||content'"
+                            else:
+                                output = available_tools[tool_name](tool_input_str)
+
+                            print(f"✅: {output}")
+                            messages.append({
+                                "role": "user",
+                                "content": json.dumps({"step": "observe", "output": str(output)})
+                            })
+                            should_request_next_step = True
+                            continue
+
                         error_msg = f"Error: Tool '{tool_name}' not found"
                         print(f"❌ {error_msg}")
                         messages.append({
                             "role": "user",
                             "content": json.dumps({"step": "observe", "output": error_msg})
                         })
+                        should_request_next_step = True
                         continue
-                
-                if parsed_response.get("step") == "output":
-                    print(f"🤖: {parsed_response.get('content')}\n")
+
+                    if step_type == "output":
+                        print(f"🤖: {parsed_response.get('content')}\n")
+                        has_final_output = True
+                        break
+
+                    print(f"❌ Unknown step type: {step_type}")
+
+                if has_final_output:
                     break
+
+                if should_request_next_step:
+                    continue
+
+                print("❌ No actionable step produced by model")
+                break
                     
             except json.JSONDecodeError as e:
                 print(f"❌ JSON parsing error: {e}")
